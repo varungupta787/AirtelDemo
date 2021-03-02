@@ -3,30 +3,43 @@ package com.airtel.demo.presentation.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.airtel.demo.data.network.NetworkResponseWrapper
 import com.airtel.demo.domain.interactors.AddressUseCase
 import com.airtel.demo.domain.models.AddressSuggestionData
+import com.airtel.demo.presentation.di.qualifiers.IODispatcher
+import com.airtel.demo.presentation.di.qualifiers.UiThreadDispatcher
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
 open class AddressViewModel
-@Inject constructor(private var addressUsecase: AddressUseCase) : ViewModel() {
+@Inject constructor(private var addressUsecase: AddressUseCase,
+                    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+                    @UiThreadDispatcher private val mainDispatcher: CoroutineDispatcher) : ViewModel() {
     private var suggestionData = MutableLiveData<AddressSuggestionData>()
     private var suggestionError = MutableLiveData<String>()
     private var showLoader = MutableLiveData<Boolean>()
 
-    fun getAddressSuggestion(queryString: String, city:String) {
+    fun getAddressSuggestion(queryString: String, city: String) {
         showLoader.value = true
-        addressUsecase.execute(queryString, city, this::onSuccess, this::onError)
-    }
+        viewModelScope.launch(ioDispatcher) {
+            val networkData: NetworkResponseWrapper<AddressSuggestionData> =
+                    addressUsecase.execute(queryString, city)
+            launch(mainDispatcher) {
+                when (networkData) {
 
-    private fun onSuccess(addressSuggestion: AddressSuggestionData){
-        suggestionData.value = addressSuggestion
-        showLoader.value = false
-    }
-
-    private fun onError(errorMsg: String) {
-        suggestionError.value = errorMsg
-        showLoader.value = false
+                    is NetworkResponseWrapper.NetworkSuccess -> {
+                        suggestionData.value = networkData.data as AddressSuggestionData
+                    }
+                    is NetworkResponseWrapper.NetworkError -> {
+                        suggestionError.value = networkData.errorMsg
+                    }
+                }
+                showLoader.value = false
+            }
+        }
     }
 
     val addressSuggestions: LiveData<AddressSuggestionData>
@@ -37,10 +50,5 @@ open class AddressViewModel
 
     val loadingState: LiveData<Boolean>
         get() = showLoader
-
-    override fun onCleared() {
-        addressUsecase.dispose()
-        super.onCleared()
-    }
 
 }

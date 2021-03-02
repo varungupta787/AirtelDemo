@@ -1,9 +1,9 @@
 package com.airtel.demo.domain.repositories
 
 import com.airtel.demo.domain.models.AddressSuggestionData
-import io.reactivex.Single
+import retrofit2.Response
 
 interface AddressRepo {
-    fun getAddressSuggestion(queryString:String,
-                             city:String): Single<AddressSuggestionData>
+    suspend fun getAddressSuggestion(queryString:String,
+                             city:String): Response<AddressSuggestionData>
 }

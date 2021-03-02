@@ -1,6 +1,8 @@
 package com.airtel.demo.presentation.ui
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -12,15 +14,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.airtel.demo.AirtelApplication
 import com.airtel.demo.R
 import com.airtel.demo.data.network.NetworkUtility
 import com.airtel.demo.presentation.di.components.AutoSuggestionComponents
 import com.airtel.demo.presentation.di.components.DaggerAutoSuggestionComponents
 import com.airtel.demo.presentation.viewmodel.AddressViewModel
-import com.jakewharton.rxbinding.widget.RxTextView
-import rx.android.schedulers.AndroidSchedulers
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class AutoSuggestionActivity : AppCompatActivity() {
@@ -97,24 +95,28 @@ class AutoSuggestionActivity : AppCompatActivity() {
 
     private fun setSearchListener() {
 
-        RxTextView.textChangeEvents(searchBox)
-                .skip(1)
-                .debounce(500, TimeUnit.MILLISECONDS)
-                .distinctUntilChanged()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe {
-                    val isInternetAvailable = NetworkUtility.isNetworkAvailable(applicationContext)
-                    if (isInternetAvailable) {
-                        showAutoSuggestionView()
-                        if (it.text().toString().isEmpty()) {
-                            clearSuggestionsList()
-                        } else {
-                            viewModel.getAddressSuggestion(it.text().toString(), CITY)
-                        }
+        searchBox.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val isInternetAvailable = NetworkUtility.isNetworkAvailable(applicationContext)
+                if (isInternetAvailable) {
+                    showAutoSuggestionView()
+                    if (s.isNullOrEmpty()) {
+                        clearSuggestionsList()
                     } else {
-                        showNoInternetView()
+                        viewModel.getAddressSuggestion(s.toString(), CITY)
                     }
+                } else {
+                    showNoInternetView()
                 }
+            }
+        })
     }
 
     private fun showNoInternetView() {

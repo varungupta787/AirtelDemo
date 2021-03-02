@@ -2,17 +2,17 @@ package com.airtel.demo.presentation.di.modules
 
 
 import com.airtel.demo.presentation.di.scope.ApplicationScope
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.topgithub.demo.data.network.ApiService
-
-import java.util.concurrent.TimeUnit
-
 import dagger.Module
 import dagger.Provides
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+
 @Module
 class NetworkModule {
 
@@ -20,15 +20,8 @@ class NetworkModule {
 
     @Provides
     @ApplicationScope
-    fun getGsonConverterFactory(): GsonConverterFactory {
-        return GsonConverterFactory.create()
-    }
+    fun getGsonConverterFactory(): Gson = GsonBuilder().create()
 
-    @Provides
-    @ApplicationScope
-    fun geRrxJava2CallAdapterFactory(): RxJava2CallAdapterFactory {
-        return RxJava2CallAdapterFactory.create()
-    }
 
     @Provides
     @ApplicationScope
@@ -47,11 +40,10 @@ class NetworkModule {
     @Provides
     @ApplicationScope
     fun getRetrofit(
-        gsonFactory: GsonConverterFactory, okHttpClient: OkHttpClient,
-        rxJavaFactory: RxJava2CallAdapterFactory
+        gson: Gson, okHttpClient: OkHttpClient
     ): Retrofit {
         return Retrofit.Builder().baseUrl(BASE_URL).client(okHttpClient)
-            .addCallAdapterFactory(rxJavaFactory).addConverterFactory(gsonFactory).build()
+                .addConverterFactory(GsonConverterFactory.create(gson)).build()
     }
 
     @Provides

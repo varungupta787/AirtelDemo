@@ -1,35 +1,18 @@
 package com.airtel.demo.domain.interactors
 
-import io.reactivex.Scheduler
-import io.reactivex.Single
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.observers.DisposableSingleObserver
-import io.reactivex.rxkotlin.plusAssign
+import com.airtel.demo.data.network.NetworkResponseWrapper
+import retrofit2.Response
 
-abstract class BaseUseCase<T> constructor(val workScheduler: Scheduler,
-                                          val uiThreadScheduler: Scheduler) {
+abstract class BaseUseCase {
 
 
-    val disposables = CompositeDisposable()
+    protected fun <T> executeUseCase(response: Response<T>): NetworkResponseWrapper<T> {
 
-    fun dispose() {
-        disposables.clear()
-    }
+        if (response.isSuccessful) {
+            return NetworkResponseWrapper.NetworkSuccess(response.body())
+        } else {
+            return NetworkResponseWrapper.NetworkError(response.message())
+        }
 
-    protected fun Single<T>.executeUseCase(onSuccess: (T) -> Unit,
-                                           onError: (errorMsg: String) -> Unit) {
-
-        disposables += this
-                .subscribeOn(workScheduler)
-                .observeOn(uiThreadScheduler)
-                .subscribeWith(object : DisposableSingleObserver<T>() {
-                    override fun onSuccess(t: T) {
-                        onSuccess(t)
-                    }
-
-                    override fun onError(e: Throwable) {
-                        onError("Server Error. Try Again !!!!")
-                    }
-                })
     }
 }
