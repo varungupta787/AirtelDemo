@@ -1,33 +1,46 @@
 package com.airtel.demo
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.Observer
+import com.airtel.demo.data.network.NetworkResponseWrapper
 import com.airtel.demo.domain.interactors.AddressUseCase
 import com.airtel.demo.domain.models.AddressSuggestionData
-import com.airtel.demo.domain.repositories.AddressRepo
-import com.airtel.demo.presentation.di.qualifiers.TrampolineScheduler
-import com.airtel.demo.presentation.ui.AutoSuggestionActivity
 import com.airtel.demo.presentation.viewmodel.AddressViewModel
-import com.nhaarman.mockito_kotlin.*
-import io.reactivex.Scheduler
-import org.junit.Assert
+import com.nhaarman.mockito_kotlin.mock
+import io.mockk.*
+import io.mockk.impl.annotations.MockK
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.ArgumentMatchers
-import org.mockito.InjectMocks
-import org.mockito.Mock
-import org.mockito.MockitoAnnotations
-import kotlin.reflect.jvm.internal.impl.javax.inject.Inject
 
+@ExperimentalCoroutinesApi
 open class ViewModelTest {
 
     lateinit var viewModel: AddressViewModel
-    //@InjectMocks
+
+    @MockK
     lateinit var useCase: AddressUseCase
 
-    @TrampolineScheduler
-    lateinit var scheduler: Scheduler
+    @get:Rule
+    val instantTaskExecutorRule = InstantTaskExecutorRule()
 
+    @get:Rule
+    val coroutineRule = TestCoroutineRule()
+
+
+    var dispatcher= TestCoroutineDispatcher()
+
+    @MockK
+    lateinit var loaderObserver: Observer<Boolean>
+
+
+    @MockK
+    lateinit var successObserver: Observer<AddressSuggestionData>
+
+    @MockK
+    lateinit var errorObserver: Observer<String>
 
     @Rule
     @JvmField
@@ -35,36 +48,49 @@ open class ViewModelTest {
 
     @Before
     fun setUp() {
-        MockitoAnnotations.initMocks(this)
-        //useCase = AddressUseCase(repo,  scheduler, scheduler)
-        useCase = mock<AddressUseCase>()
-        viewModel = AddressViewModel(useCase)
+        MockKAnnotations.init(this)
+        viewModel = AddressViewModel(useCase, dispatcher, dispatcher)
     }
 
     @Test
     fun testGetAddressSuggestionSuccess() {
+        coroutineRule.runBlockingTest {
+        every { loaderObserver.onChanged(any()) } just Runs
+        viewModel.loadingState.observeForever(loaderObserver)
+        viewModel.addressSuggestions.observeForever(successObserver)
+        val addressData = mock<AddressSuggestionData>()
+        val successResponse =
+                NetworkResponseWrapper.NetworkSuccess(addressData)
+        coEvery { useCase.execute(String(), String()) } returns successResponse
 
-        val addressSuggestionData = mock<AddressSuggestionData>()
-        val onSuccessCallback = argumentCaptor<(AddressSuggestionData) -> Unit>()
-        val onErrorCallback = argumentCaptor<(String) -> Unit>()
-
-        whenever(useCase.execute("", "",
-                onSuccess = onSuccessCallback.capture(), onError = onErrorCallback.capture()))
-        doAnswer { onSuccessCallback.firstValue(addressSuggestionData)}
-
-        viewModel.getAddressSuggestion(ArgumentMatchers.anyString(), ArgumentMatchers.anyString())
-        Assert.assertEquals(true, viewModel.loadingState)
-        useCase.execute(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
-                onSuccessCallback.capture(), ArgumentMatchers.any())
-        //onSuccessCallback.firstValue
-        Assert.assertEquals(addressSuggestionData , viewModel.addressSuggestions.value)
-        Assert.assertEquals(false, viewModel.loadingState)
-
+            viewModel.getAddressSuggestion(String(), String())
+            verify(atLeast = 1) { loaderObserver.onChanged(any()) }
+            verify(exactly = 1) { successObserver.onChanged(successResponse.data) }
+            verify(atLeast = 1) { loaderObserver.onChanged(any()) }
+        }
+        viewModel.loadingState.removeObserver(loaderObserver)
+        viewModel.addressSuggestions.removeObserver(successObserver)
     }
 
     @Test
     fun testGetAddressSuggestionFailure() {
+        every { loaderObserver.onChanged(any()) } just Runs
+        viewModel.loadingState.observeForever(loaderObserver)
+        viewModel.addressSuggestionError.observeForever(errorObserver)
+        val errorMsg  = "Error"
+        val errorResponse =
+                NetworkResponseWrapper.NetworkError<AddressSuggestionData>(errorMsg)
+        coEvery { useCase.execute(String(), String()) } returns errorResponse
 
+
+        coroutineRule.runBlockingTest {
+            viewModel.getAddressSuggestion(String(), String())
+            verify(atLeast = 1) { loaderObserver.onChanged(any()) }
+            verify(exactly = 1) { errorObserver.onChanged(errorMsg) }
+            verify(atLeast = 1) { loaderObserver.onChanged(any()) }
+        }
+        viewModel.loadingState.removeObserver(loaderObserver)
+        viewModel.addressSuggestionError.removeObserver(errorObserver)
     }
 
 }
