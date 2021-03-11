@@ -1,11 +1,11 @@
 package com.airtel.demo.presentation.ui
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
-
 import android.os.Bundle
-import android.os.Handler
+import androidx.appcompat.app.AppCompatActivity
 import com.airtel.demo.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 
 class SplashActivity : AppCompatActivity() {
 
@@ -15,10 +15,10 @@ class SplashActivity : AppCompatActivity() {
         moveToSuggestionScreen()
     }
 
-    private fun moveToSuggestionScreen() {
-        Handler().postDelayed( {
+    fun moveToSuggestionScreen() = runBlocking {
+        delay(2000)
             startActivity(Intent(this@SplashActivity,
-                    AutoSuggestionActivity::class.java))}, 2000)
+                    AutoSuggestionActivity::class.java))
         finish()
     }
 }

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">AirtelDemo</string>
+    <string name="airtel">Airtel</string>
+    <string name="autosuggestion_box">AutoSuggestion Box</string>
 </resources>
